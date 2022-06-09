@@ -4,6 +4,7 @@
 
 #include "server.h"
 
+#include "connection.h"
 #include "io.h"
 #include "utils.h"
 #include "webserver.h"
@@ -23,28 +24,47 @@ void initialize_server(const InputArguments* arguments, Server* server) {
     server->pages_directory_path = to_real_path(arguments->pages_directory_path);
 }
 
-static inline void handle_connection(const int connection_fd, Server* server) {
-    (void)server;
+static inline void send_response(Connection* connection, Server* server) { }
 
+static inline void receive_request(Connection* connection, Server* server) {
+    uint8_t* buffer = &connection->parser_state.input_buffer;
+    const size_t received
+        = receive(connection->connection_fd, buffer, sizeof(CONNECTION_RECEIVE_BUFFER_SIZE));
+    update_http_request_parser_state(received, &connection->parser_state);
+    bool received_terminator
+        = parse_http_request(&connection->parser_state, &connection->http_request);
+
+    if (received_terminator) {
+        reset_http_request_parser_state(&connection->parser_state);
+
+        send_response(connection, server);
+        print_http_request(&connection->http_request); // TODO: remove
+
+        reset_http_request(&connection->http_request);
+    }
+}
+
+static inline void handle_connection(Connection* connection, Server* server) {
     struct timeval select_time
         = { .tv_sec = CONNECTION_TIMEOUT_SECONDS, .tv_usec = CONNECTION_TIMEOUT_MICROSECONDS };
 
     while (1) {
         fd_set select_descriptors;
         FD_ZERO(&select_descriptors);
-        FD_SET(connection_fd, &select_descriptors);
+        FD_SET(connection->connection_fd, &select_descriptors);
 
-        const int ready = select(connection_fd + 1, &select_descriptors, NULL, NULL, &select_time);
+        const int ready
+            = select(connection->connection_fd + 1, &select_descriptors, NULL, NULL, &select_time);
 
         if (ready < 0) {
             eprintln("select error: %s", strerror(errno));
             exit(EXIT_FAILURE);
         } else if (ready == 0) {
+            uninitialize_http_request_parser_state(&connection->parser_state);
+            uninitialize_http_request(&connection->http_request);
             return;
         } else { // ready > 0
-            uint8_t buffer[CONNECTION_RECEIVE_BUFFER_SIZE];
-            const size_t received = receive(connection_fd, buffer, sizeof(buffer));
-            print_chars(buffer, received);
+            receive_request(connection, server);
         }
     }
 }
@@ -53,30 +73,19 @@ void start_server(Server* server) {
     listen_on_socket(server->socket_fd, CONNECTIONS_QUEUE_SIZE);
 
     while (1) {
-        const int connection_fd = accept_connection_on_socket(server->socket_fd);
-        handle_connection(connection_fd, server);
-        close_fd(connection_fd);
+        Connection connection;
+        uint8_t buffer[CONNECTION_RECEIVE_BUFFER_SIZE];
+        initialize_connection(buffer, server, &connection);
+
+        handle_connection(&connection, server);
+
+        uninitialize_connection(&connection);
     }
 }
 
 void uninitialize_server(Server* server) {
     free(server->pages_directory_path);
+    server->pages_directory_path = NULL;
     close_fd(server->socket_fd);
+    server->socket_fd = -1;
 }
-
-// Example request:
-
-// GET / HTTP/1.1
-// Host: localhost:12345
-// User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:101.0) Gecko/20100101 Firefox/101.0
-// Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8
-// Accept-Language: en-US,en;q=0.5
-// Accept-Encoding: gzip, deflate, br
-// DNT: 1
-// Connection: keep-alive
-// Upgrade-Insecure-Requests: 1
-// Sec-Fetch-Dest: document
-// Sec-Fetch-Mode: navigate
-// Sec-Fetch-Site: cross-site
-// Sec-GPC: 1
-//

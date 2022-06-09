@@ -11,7 +11,7 @@ void print_as_bytes(const unsigned char* buff, ssize_t length) {
     println();
 }
 
-void print_chars(const uint8_t* buffer, size_t length) {
+void print_chars(const char* buffer, size_t length) {
     for (size_t index = 0; index < length; index++, buffer++) {
         printf("%c", *buffer);
     }

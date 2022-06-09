@@ -5,7 +5,8 @@ CFLAGS = -std=gnu17 -Wall -Wextra -Werror -pedantic -g
 LDFLAGS =
 
 BINARY_NAME := webserver
-SRCS := utils.c io.c server.c main.c
+SRCS := utils.c io.c http_request.c http_request_parser.c http_response.c connection.c server.c \
+main.c
 OBJS := $(SRCS:%.c=%.o)
 
 $(BINARY_NAME): $(OBJS)
