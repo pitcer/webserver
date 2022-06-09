@@ -1,0 +1,9 @@
+.vscode/
+binaries/
+legacy/
+webpages/
+.gdb_history
+webserver
+*.o
+*.bin
+*.txt
