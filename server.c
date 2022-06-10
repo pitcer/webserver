@@ -5,6 +5,7 @@
 #include "server.h"
 
 #include "connection.h"
+#include "http_response_generator.h"
 #include "io.h"
 #include "utils.h"
 #include "webserver.h"
@@ -24,23 +25,56 @@ void initialize_server(const InputArguments* arguments, Server* server) {
     server->pages_directory_path = to_real_path(arguments->pages_directory_path);
 }
 
-static inline void send_response(Connection* connection, Server* server) { }
+static inline void send_response(Connection* connection, HttpResponse* response) {
+    size_t bytes_sent
+        = send_packet(connection->connection_fd, response->buffer, response->buffer_content_length);
+
+    while (bytes_sent < response->buffer_content_length) {
+        uint8_t* buffer = response->buffer + bytes_sent;
+        size_t buffer_length = response->buffer_content_length - bytes_sent;
+
+        bytes_sent = send_packet(connection->connection_fd, buffer, buffer_length);
+    }
+}
+
+static inline void handle_request(Connection* connection, Server* server) {
+    HttpResponse response;
+    initialize_response(&response);
+    generate_ok_response(&response);
+    send_response(connection, &response);
+    uninitialize_response(&response);
+    (void)server;
+}
 
 static inline void receive_request(Connection* connection, Server* server) {
-    uint8_t* buffer = &connection->parser_state.input_buffer;
-    const size_t received
-        = receive(connection->connection_fd, buffer, sizeof(CONNECTION_RECEIVE_BUFFER_SIZE));
+    const size_t received = receive_packet(
+        connection->connection_fd, connection->receive_buffer, sizeof(connection->receive_buffer));
     update_http_request_parser_state(received, &connection->parser_state);
-    bool received_terminator
+    const ParseResult result
         = parse_http_request(&connection->parser_state, &connection->http_request);
 
-    if (received_terminator) {
+    switch (result) {
+    case TERMINATOR_REACHED_PARSE_RESULT: {
         reset_http_request_parser_state(&connection->parser_state);
 
-        send_response(connection, server);
-        print_http_request(&connection->http_request); // TODO: remove
+        handle_request(connection, server);
 
         reset_http_request(&connection->http_request);
+        break;
+    }
+    case INVALID_REQUEST_PARSE_RESULT: {
+        reset_http_request_parser_state(&connection->parser_state);
+        reset_http_request(&connection->http_request);
+
+        HttpResponse response;
+        initialize_response(&response);
+        generate_not_implemented_response(&response);
+        send_response(connection, &response);
+        uninitialize_response(&response);
+        break;
+    }
+    default:
+        break;
     }
 }
 
@@ -60,8 +94,6 @@ static inline void handle_connection(Connection* connection, Server* server) {
             eprintln("select error: %s", strerror(errno));
             exit(EXIT_FAILURE);
         } else if (ready == 0) {
-            uninitialize_http_request_parser_state(&connection->parser_state);
-            uninitialize_http_request(&connection->http_request);
             return;
         } else { // ready > 0
             receive_request(connection, server);
@@ -74,8 +106,7 @@ void start_server(Server* server) {
 
     while (1) {
         Connection connection;
-        uint8_t buffer[CONNECTION_RECEIVE_BUFFER_SIZE];
-        initialize_connection(buffer, server, &connection);
+        initialize_connection(server->socket_fd, &connection);
 
         handle_connection(&connection, server);
 

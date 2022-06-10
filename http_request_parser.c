@@ -7,13 +7,14 @@
 #include "utils.h"
 #include "webserver.h"
 #include <malloc.h>
+#include <string.h>
 
 void initialize_http_request_parser_state(uint8_t* buffer, ParserState* state) {
     state->input_buffer = buffer;
     state->input_buffer_length = 0;
-    state->current_line = malloc(PARSER_LINE_BUFFER_SIZE);
+    initialize_string(&state->current_line);
+    state->current_line.characters = malloc(PARSER_LINE_BUFFER_SIZE);
     state->line_buffer_size = PARSER_LINE_BUFFER_SIZE;
-    state->line_length = 0;
     state->cr_received = false;
     state->first_line = true;
 }
@@ -23,13 +24,69 @@ void update_http_request_parser_state(const size_t buffer_received_length, Parse
 }
 
 void reset_http_request_parser_state(ParserState* state) {
-    state->line_length = 0;
+    state->current_line.length = 0;
     state->cr_received = false;
     state->first_line = true;
 }
 
-static inline void parse_http_request_line(ParserState* state, HttpRequest* request) {
-    print_chars(state->current_line, state->line_length);
+static inline bool parse_get_method(String* line, HttpRequest* request) {
+    String path;
+
+    if (!string_split(line, ' ', &path, NULL)) {
+        return false;
+    }
+
+    string_allocate_copy(&path, &request->path);
+    return true;
+}
+
+static inline bool parse_start_line(ParserState* state, HttpRequest* request) {
+    const String* line = &state->current_line;
+    String remaining;
+
+    if (string_strip_prefix(line, &HTTP_METHOD_NAME_GET_STRING, &remaining)) {
+        request->method = GET_METHOD;
+        return parse_get_method(&remaining, request);
+    }
+
+    // Unknown HTTP method reached.
+    return false;
+}
+
+static inline bool parse_connection_type(const String* value, HttpRequest* request) {
+    if (string_equals(value, &CONNECTION_TYPE_CLOSE_STRING)) {
+        request->connection_type = CLOSE_CONNECTION_TYPE;
+    } else if (string_equals(value, &CONNECTION_TYPE_KEEP_ALIVE_STRING)) {
+        request->connection_type = KEEP_ALIVE_CONNECTION_TYPE;
+    }
+
+    // Simply leave connection type unknown.
+    return true;
+}
+
+static inline bool parse_header_field(ParserState* state, HttpRequest* request) {
+    const String* line = &state->current_line;
+    String value;
+
+    if (string_strip_prefix(line, &HOST_FIELD_PREFIX_STRING, &value)) {
+        string_trim_whitespaces(&value, &value);
+        string_allocate_copy(&value, &request->host);
+    } else if (string_strip_prefix(line, &CONNECTION_FIELD_PREFIX_STRING, &value)) {
+        string_trim_whitespaces(&value, &value);
+        parse_connection_type(&value, request);
+    }
+
+    // Simply skip unknown fields.
+    return true;
+}
+
+static inline bool parse_line(ParserState* state, HttpRequest* request) {
+    if (state->first_line) {
+        state->first_line = false;
+        return parse_start_line(state, request);
+    } else {
+        return parse_header_field(state, request);
+    }
 }
 
 /**
@@ -46,16 +103,20 @@ bool parse_http_request(ParserState* state, HttpRequest* request) {
             // If this is in fact new line, then handle and clear it, otherwise parse as always.
             if (current_byte == '\n') {
                 // As this is the end of line, we are not interested in the last '\r' character.
-                state->line_length--;
+                // We can replace it with null terminator.
+                state->current_line.length--;
+                state->current_line.characters[state->current_line.length] = '\0';
 
                 // If in this line we received only '\r\n', then its a header terminator.
-                if (state->line_length == 0) {
-                    println("--- End of HTTP request header ---");
-                    return true;
+                if (state->current_line.length == 0) {
+                    return TERMINATOR_REACHED_PARSE_RESULT;
                 }
 
-                parse_http_request_line(state, request);
-                state->line_length = 0;
+                const bool parsed_correctly = parse_line(state, request);
+                if (!parsed_correctly) {
+                    return INVALID_REQUEST_PARSE_RESULT;
+                }
+                state->current_line.length = 0;
                 continue;
             }
         }
@@ -67,38 +128,21 @@ bool parse_http_request(ParserState* state, HttpRequest* request) {
 
         // Increase line buffer by a factor of two if it is too small.
         // This change will persist until header terminator is reached.
-        assert(state->line_length <= state->input_buffer_length);
-        if (state->line_length == state->input_buffer_length) {
-            state->current_line = realloc(state->current_line, state->input_buffer_length * 2);
+        assert(state->current_line.length <= state->input_buffer_length);
+        if (state->current_line.length == state->input_buffer_length) {
+            state->current_line.characters
+                = realloc(state->current_line.characters, state->input_buffer_length * 2);
             state->input_buffer_length *= 2;
         }
 
         // Save current byte to line buffer.
-        state->current_line[state->line_length] = current_byte;
-        state->line_length++;
+        state->current_line.characters[state->current_line.length] = current_byte;
+        state->current_line.length++;
     }
 
-    return false;
+    return MORE_BYTES_PARSE_RESULT;
 }
 
 void uninitialize_http_request_parser_state(ParserState* state) {
-    free(state->current_line);
-    state->current_line = NULL;
+    uninitialize_string(&state->current_line);
 }
-
-// Example request:
-
-// GET / HTTP/1.1
-// Host: localhost:12345
-// User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:101.0) Gecko/20100101 Firefox/101.0
-// Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8
-// Accept-Language: en-US,en;q=0.5
-// Accept-Encoding: gzip, deflate, br
-// DNT: 1
-// Connection: keep-alive
-// Upgrade-Insecure-Requests: 1
-// Sec-Fetch-Dest: document
-// Sec-Fetch-Mode: navigate
-// Sec-Fetch-Site: cross-site
-// Sec-GPC: 1
-//

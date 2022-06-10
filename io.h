@@ -50,10 +50,12 @@ int accept_connection_on_socket(const int socket_fd);
 ssize_t try_send_to(const int socket_fd, const void* buffer, const size_t buffer_length,
     const struct sockaddr_in* receiver);
 
+size_t send_packet(const int socket_fd, const void* buffer, const size_t buffer_length);
+
 void send_to(const int socket_fd, const void* buffer, const size_t buffer_length,
     const struct sockaddr_in* receiver);
 
-size_t receive(const int socket_fd, void* sent_buffer, const size_t buffer_length);
+size_t receive_packet(const int socket_fd, void* sent_buffer, const size_t buffer_length);
 
 size_t receive_from(
     const int socket_fd, void* sent_buffer, const size_t buffer_length, struct sockaddr_in* sender);

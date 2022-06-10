@@ -4,15 +4,19 @@
 
 #include "connection.h"
 
-static inline void initialize_connection(
-    uint8_t* buffer, const int socket_fd, Connection* connection) {
+#include "io.h"
 
-    initialize_http_request_parser_state(buffer, &connection->parser_state);
+void initialize_connection(const int socket_fd, Connection* connection) {
+    initialize_http_request_parser_state(connection->receive_buffer, &connection->parser_state);
     initialize_http_request(&connection->http_request);
 
     connection->connection_fd = accept_connection_on_socket(socket_fd);
 }
 
-static inline void uninitialize_connection(Connection* connection) {
+void uninitialize_connection(Connection* connection) {
     close_fd(connection->connection_fd);
+    connection->connection_fd = -1;
+
+    uninitialize_http_request_parser_state(&connection->parser_state);
+    uninitialize_http_request(&connection->http_request);
 }

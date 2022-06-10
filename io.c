@@ -170,6 +170,15 @@ ssize_t try_send_to(const int socket_fd, const void* buffer, const size_t buffer
         socket_fd, buffer, buffer_length, 0, (struct sockaddr*)receiver, sizeof(*receiver));
 }
 
+size_t send_packet(const int socket_fd, const void* buffer, const size_t buffer_length) {
+    const ssize_t result = send(socket_fd, buffer, buffer_length, 0);
+    if (result < 0) {
+        eprintln("send error: %s", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    return result;
+}
+
 void send_to(const int socket_fd, const void* buffer, const size_t buffer_length,
     const struct sockaddr_in* receiver) {
 
@@ -180,7 +189,7 @@ void send_to(const int socket_fd, const void* buffer, const size_t buffer_length
     }
 }
 
-size_t receive(const int socket_fd, void* sent_buffer, const size_t buffer_length) {
+size_t receive_packet(const int socket_fd, void* sent_buffer, const size_t buffer_length) {
     const ssize_t result = recv(socket_fd, sent_buffer, buffer_length, 0);
     if (result < 0) {
         eprintln("recv error: %s", strerror(errno));

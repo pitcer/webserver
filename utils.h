@@ -26,5 +26,3 @@
 #endif
 
 void print_as_bytes(const unsigned char* buff, ssize_t length);
-
-void print_chars(const char* buffer, size_t length);

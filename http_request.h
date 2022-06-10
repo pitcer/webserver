@@ -4,20 +4,25 @@
 
 #pragma once
 
-typedef enum {
+#include "str.h"
+
+typedef enum
+{
     GET_METHOD,
-    UNKNOWN_METHOD,
+    UNKNOWN_METHOD
 } HttpMethod;
 
-typedef enum {
+typedef enum
+{
     CLOSE_CONNECTION_TYPE,
-    UNKNOWN_CONNECTION_TYPE,
+    KEEP_ALIVE_CONNECTION_TYPE,
+    UNKNOWN_CONNECTION_TYPE
 } ConnectionType;
 
 typedef struct {
     HttpMethod method;
-    char* path;
-    char* host;
+    String path;
+    String host;
     ConnectionType connection_type;
 } HttpRequest;
 

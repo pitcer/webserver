@@ -5,19 +5,26 @@
 #pragma once
 
 #include "http_request.h"
+#include "str.h"
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdlib.h>
 
 typedef struct {
-    const uint8_t* input_buffer;
+    uint8_t* input_buffer;
     size_t input_buffer_length;
-    char* current_line;
+    String current_line;
     size_t line_buffer_size;
-    size_t line_length;
     bool cr_received;
     bool first_line;
 } ParserState;
+
+typedef enum
+{
+    TERMINATOR_REACHED_PARSE_RESULT,
+    MORE_BYTES_PARSE_RESULT,
+    INVALID_REQUEST_PARSE_RESULT
+} ParseResult;
 
 void initialize_http_request_parser_state(uint8_t* buffer, ParserState* state);
 
