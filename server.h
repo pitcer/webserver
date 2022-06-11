@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "str.h"
 #include <inttypes.h>
 
 typedef struct {
@@ -13,7 +14,7 @@ typedef struct {
 
 typedef struct {
     int socket_fd;
-    char* pages_directory_path;
+    String pages_directory_path;
 } Server;
 
 void initialize_server(const InputArguments* arguments, Server* server);

@@ -92,7 +92,7 @@ static inline bool parse_line(ParserState* state, HttpRequest* request) {
 /**
  * Returns true if HTTP header terminator (empty line) was reached, otherwise false.
  */
-bool parse_http_request(ParserState* state, HttpRequest* request) {
+ParseResult parse_http_request(ParserState* state, HttpRequest* request) {
     for (size_t index = 0; index < state->input_buffer_length; index++) {
         uint8_t current_byte = state->input_buffer[index];
 

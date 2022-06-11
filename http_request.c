@@ -20,15 +20,16 @@ void reset_http_request(HttpRequest* request) {
     initialize_http_request(request);
 }
 
-void print_http_request(const HttpRequest* request) {
+void debug_print_http_request(const HttpRequest* request) {
     char* method = request->method == GET_METHOD ? HTTP_METHOD_NAME_GET : "UNKNOWN";
     char* connection_type = request->connection_type == CLOSE_CONNECTION_TYPE
         ? CONNECTION_TYPE_CLOSE
         : request->connection_type == KEEP_ALIVE_CONNECTION_TYPE ? CONNECTION_TYPE_KEEP_ALIVE
                                                                  : "unknown";
-    println("%s '%s' HTTP/1.1", method, request->path.characters);
-    println("Host: '%s'", request->host.characters);
-    println("Connection: '%s'", connection_type);
+    debug("%s '%s' HTTP/1.1", method, request->path.characters);
+    debug("Host: '%s'", request->host.characters);
+    debug("Connection: '%s'", connection_type);
+    debug();
 }
 
 void uninitialize_http_request(HttpRequest* request) {

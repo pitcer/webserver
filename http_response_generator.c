@@ -6,22 +6,24 @@
 
 #include "webserver.h"
 
-void generate_ok_response(HttpResponse* response) {
-    const size_t content_length = sizeof("200 OK") - 1;
+void generate_ok_response(
+    const size_t content_length, const ContentType content_type, HttpResponse* response) {
 
     add_status_line_to_response(OK_RESPONSE_CODE, response);
-    add_content_type_to_response(PLAIN_TEXT, response);
+    add_content_type_to_response(content_type, response);
     add_content_length_to_response(content_length, response);
     add_header_terminator_to_response(response);
-    add_content_to_response("200 OK", content_length, response);
 }
 
-void generate_moved_permanently_response(HttpResponse* response) {
+void generate_moved_permanently_response(const char* location, HttpResponse* response) {
+    const size_t content_length = sizeof(HTTP_RESPONSE_CONTENT_MOVED_PERMANENTLY) - 1;
+
     add_status_line_to_response(MOVED_PERMANENTLY_RESPONSE_CODE, response);
-    add_content_type_to_response(PLAIN_TEXT, response);
-    add_content_length_to_response(0, response);
-    add_location_to_response("/", response);
+    add_content_type_to_response(HTML_TEXT, response);
+    add_content_length_to_response(content_length, response);
+    add_location_to_response(location, response);
     add_header_terminator_to_response(response);
+    add_content_to_response(HTTP_RESPONSE_CONTENT_MOVED_PERMANENTLY, content_length, response);
 }
 
 void generate_forbidden_response(HttpResponse* response) {

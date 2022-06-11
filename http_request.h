@@ -30,6 +30,6 @@ void initialize_http_request(HttpRequest* request);
 
 void reset_http_request(HttpRequest* request);
 
-void print_http_request(const HttpRequest* request);
+void debug_print_http_request(const HttpRequest* request);
 
 void uninitialize_http_request(HttpRequest* request);

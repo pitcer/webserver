@@ -32,6 +32,6 @@ void update_http_request_parser_state(const size_t buffer_received_length, Parse
 
 void reset_http_request_parser_state(ParserState* state);
 
-bool parse_http_request(ParserState* state, HttpRequest* request);
+ParseResult parse_http_request(ParserState* state, HttpRequest* request);
 
 void uninitialize_http_request_parser_state(ParserState* state);

@@ -12,12 +12,10 @@
 
 static inline void validate_pages_directory(const char* pages_directory_path) {
     struct stat pages_directory_status;
-    if (stat(pages_directory_path, &pages_directory_status) == -1) {
-        if (errno == ENOENT) {
-            eprintln("Pages directory '%s' does not exist", pages_directory_path);
-        } else {
-            eprintln("stat error: %s", strerror(errno));
-        }
+    const bool director_exists = get_status(pages_directory_path, &pages_directory_status);
+
+    if (!director_exists) {
+        eprintln("Pages directory '%s' does not exist", pages_directory_path);
         exit(EXIT_FAILURE);
     }
 

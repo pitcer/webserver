@@ -99,6 +99,7 @@ void add_status_line_to_response(const ResponseCode response_code, HttpResponse*
     const uint32_t status_code = get_status_code_from_response_code(response_code);
     const char* reason_phrase = get_reason_phrase_from_response_code(response_code);
     add_to_response(response, SERVER_HTTP_VERSION " %u %s", status_code, reason_phrase);
+    debug(SERVER_HTTP_VERSION " %u %s", status_code, reason_phrase);
 }
 
 static inline char* get_mime_type_from_content_type(const ContentType content_type) {
@@ -115,6 +116,8 @@ static inline char* get_mime_type_from_content_type(const ContentType content_ty
         return "image/png";
     case PDF_APPLICATION:
         return "application/pdf";
+    case OCTET_STREAM_APPLICATION:
+        return "application/octet-stream";
     }
     assert(false);
 }
@@ -122,18 +125,22 @@ static inline char* get_mime_type_from_content_type(const ContentType content_ty
 void add_content_type_to_response(const ContentType content_type, HttpResponse* response) {
     const char* mime_type = get_mime_type_from_content_type(content_type);
     add_to_response(response, HTTP_HEADER_FIELD_NAME_CONTENT_TYPE ": %s; charset=UTF-8", mime_type);
+    debug(HTTP_HEADER_FIELD_NAME_CONTENT_TYPE ": %s; charset=UTF-8", mime_type);
 }
 
 void add_content_length_to_response(const size_t content_length, HttpResponse* response) {
     add_to_response(response, HTTP_HEADER_FIELD_NAME_CONTENT_LENGTH ": %lu", content_length);
+    debug(HTTP_HEADER_FIELD_NAME_CONTENT_LENGTH ": %lu", content_length);
 }
 
 void add_location_to_response(const char* location, HttpResponse* response) {
     add_to_response(response, HTTP_HEADER_FIELD_NAME_LOCATION ": %s", location);
+    debug(HTTP_HEADER_FIELD_NAME_LOCATION ": %s", location);
 }
 
 void add_header_terminator_to_response(HttpResponse* response) {
     add_to_response(response, "");
+    debug();
 }
 
 void add_content_to_response(
@@ -147,12 +154,48 @@ void add_content_to_response(
     response->buffer_content_length += content_size;
 }
 
-void print_response(HttpResponse* response) {
+void debug_print_http_response(HttpResponse* response) {
     for (size_t index = 0; index < response->buffer_content_length; index++) {
         char character = response->buffer[index];
         putchar(character);
     }
     putchar('\n');
+}
+
+static const String TXT_EXTENSION_STRING = string_initializer_from_literal("txt");
+static const String HTML_EXTENSION_STRING = string_initializer_from_literal("html");
+static const String CSS_EXTENSION_STRING = string_initializer_from_literal("css");
+static const String JPG_EXTENSION_STRING = string_initializer_from_literal("jpg");
+static const String JPEG_EXTENSION_STRING = string_initializer_from_literal("jpeg");
+static const String PNG_EXTENSION_STRING = string_initializer_from_literal("png");
+static const String PDF_EXTENSION_STRING = string_initializer_from_literal("pdf");
+
+ContentType get_content_type_from_path(const String* path) {
+    String file_name;
+    string_split_backward(path, '/', NULL, &file_name);
+    String file_extension;
+    bool extension_found = string_split_backward(&file_name, '.', NULL, &file_extension);
+
+    if (!extension_found) {
+        return OCTET_STREAM_APPLICATION;
+    }
+
+    if (string_equals(&file_extension, &TXT_EXTENSION_STRING)) {
+        return PLAIN_TEXT;
+    } else if (string_equals(&file_extension, &HTML_EXTENSION_STRING)) {
+        return HTML_TEXT;
+    } else if (string_equals(&file_extension, &CSS_EXTENSION_STRING)) {
+        return CSS_TEXT;
+    } else if (string_equals(&file_extension, &JPG_EXTENSION_STRING)
+        || string_equals(&file_extension, &JPEG_EXTENSION_STRING)) {
+        return JPEG_IMAGE;
+    } else if (string_equals(&file_extension, &PNG_EXTENSION_STRING)) {
+        return PNG_IMAGE;
+    } else if (string_equals(&file_extension, &PDF_EXTENSION_STRING)) {
+        return PDF_APPLICATION;
+    } else {
+        return OCTET_STREAM_APPLICATION;
+    }
 }
 
 void uninitialize_response(HttpResponse* response) {

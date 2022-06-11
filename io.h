@@ -6,6 +6,7 @@
 
 #include <netinet/ip.h>
 #include <stdbool.h>
+#include <sys/stat.h>
 
 uint32_t get_broadcast_address(const uint32_t address, const uint8_t mask_length);
 
@@ -33,7 +34,14 @@ void close_fd(const int fd);
 
 void write_fd(const int fd, const void* buffer, const size_t buffer_length);
 
+size_t read_fd(const int fd, void* buffer, const size_t buffer_length);
+
 char* to_real_path(const char* path);
+
+/**
+ * Returns true if file at the given path exists.
+ */
+bool get_status(const char* path, struct stat* status);
 
 void enable_broadcast(const int socket_fd);
 

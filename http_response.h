@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "str.h"
 #include <inttypes.h>
 #include <stdlib.h>
 
@@ -23,7 +24,8 @@ typedef enum
     CSS_TEXT, // .css text/css
     JPEG_IMAGE, // .jpg .jpeg image/jpeg
     PNG_IMAGE, // .png image/png
-    PDF_APPLICATION // .pdf application/pdf
+    PDF_APPLICATION, // .pdf application/pdf
+    OCTET_STREAM_APPLICATION, // application/octet-stream
 } ContentType;
 
 typedef struct {
@@ -46,6 +48,8 @@ void add_header_terminator_to_response(HttpResponse* response);
 
 void add_content_to_response(const void* buffer, const size_t buffer_size, HttpResponse* response);
 
-void print_response(HttpResponse* response);
+void debug_print_http_response(HttpResponse* response);
+
+ContentType get_content_type_from_path(const String* path);
 
 void uninitialize_response(HttpResponse* response);

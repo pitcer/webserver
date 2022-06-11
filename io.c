@@ -154,6 +154,15 @@ void write_fd(const int fd, const void* buffer, const size_t buffer_length) {
     }
 }
 
+size_t read_fd(const int fd, void* buffer, const size_t buffer_length) {
+    const ssize_t result = read(fd, buffer, buffer_length);
+    if (result < 0) {
+        eprintln("write error: %s", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    return result;
+}
+
 char* to_real_path(const char* path) {
     char* result = realpath(path, NULL);
     if (result == NULL) {
@@ -161,6 +170,19 @@ char* to_real_path(const char* path) {
         exit(EXIT_FAILURE);
     }
     return result;
+}
+
+bool get_status(const char* path, struct stat* status) {
+    const int result = stat(path, status);
+    if (result == -1) {
+        if (errno == ENOENT) {
+            return false;
+        }
+
+        eprintln("stat error: %s", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    return true;
 }
 
 ssize_t try_send_to(const int socket_fd, const void* buffer, const size_t buffer_length,
@@ -202,7 +224,6 @@ size_t receive_from(const int socket_fd, void* sent_buffer, const size_t buffer_
     struct sockaddr_in* sender) {
 
     socklen_t sender_length = sizeof(*sender);
-    // TODO: add msg_dontwait to flags
     const ssize_t result = recvfrom(
         socket_fd, sent_buffer, buffer_length, 0, (struct sockaddr*)sender, &sender_length);
     if (result < 0) {
